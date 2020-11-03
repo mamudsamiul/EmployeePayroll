@@ -2,6 +2,7 @@ package com.capgemini.payrolltest;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.Test;
 
@@ -53,5 +54,22 @@ public class EmployeePayrollDBTest {
 		double sum = empPayRollService.getSumByGender(IOService.DB_IO, "F");
 		double sum1 = empPayRollService.getEmpDataGroupedByGender(IOService.DB_IO, "basic_pay", "SUM", "F");
 		Assert.assertTrue(sum == sum1);
+	}
+
+	@Test
+	public void givenDBFindAvgSalary_shouldReturnSum() throws EmpPayrollException {
+		EmpPayrollService empPayRollService = new EmpPayrollService();
+		empPayRollService.readEmpPayrollData(IOService.DB_IO);
+		Map<String, Double> avgSalaryByGender = empPayRollService.readAvgSalary(IOService.DB_IO);
+		Assert.assertTrue(avgSalaryByGender.get("M").equals(175.0) && avgSalaryByGender.get("F").equals(100.0));
+	}
+
+	@Test
+	public void givenNewEmployee_WhenAdded_ShouldSyncWithDB() throws EmpPayrollException {
+		EmpPayrollService empPayRollService = new EmpPayrollService();
+		empPayRollService.readEmpPayrollData(IOService.DB_IO);
+		empPayRollService.addEmpToPayroll("Jack", 300.0, LocalDate.now(), "M");
+		boolean result = empPayRollService.checkEmployeePayrollInSyncWithDB("Jack");
+		Assert.assertTrue(result);
 	}
 }
