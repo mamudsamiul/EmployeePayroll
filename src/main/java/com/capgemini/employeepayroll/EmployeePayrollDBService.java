@@ -1,6 +1,7 @@
 package com.capgemini.employeepayroll;
 
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -10,7 +11,10 @@ import java.sql.Statement;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class EmployeePayrollDBService {
 
@@ -49,7 +53,6 @@ public class EmployeePayrollDBService {
 	}
 
 	public int updateEmployeeData(String name, double salary) throws EmpPayrollException {
-		// TODO Auto-generated method stub
 		return this.updateEmployeeDataUsingStatement(name, salary);
 	}
 
@@ -63,18 +66,11 @@ public class EmployeePayrollDBService {
 		}
 	}
 
-	public List<EmployeePayrollData> getEmployeePayrollData(String name) throws EmpPayrollException {
-		List<EmployeePayrollData> employeePayrollList = null;
-		if (this.employeePayrollDataStatement == null)
-			this.prepareStatementForEmployeeData();
-		try {
-			employeePayrollDataStatement.setString(1, name);
-			ResultSet resultSet = employeePayrollDataStatement.executeQuery();
-			employeePayrollList = this.getEmployeePayrollData(resultSet);
-		} catch (SQLException e) {
-			throw new EmpPayrollException(EmpPayrollException.ExceptionType.CONNECTION_ERROR, e.getMessage());
-		}
-		return employeePayrollList;
+	public EmployeePayrollData getEmployeePayrollData(String name) throws EmpPayrollException {
+		List<EmployeePayrollData> employeePayrollList = this.readData();
+		EmployeePayrollData employeeData = employeePayrollList.stream()
+				.filter(employee -> employee.getName().contentEquals(name)).findFirst().orElse(null);
+		return employeeData;
 	}
 
 	private void prepareStatementForEmployeeData() throws EmpPayrollException {
@@ -95,11 +91,59 @@ public class EmployeePayrollDBService {
 				String name = result.getString("name");
 				double salary = result.getDouble("basic_pay");
 				LocalDate startDate = result.getDate("start").toLocalDate();
-				employeePayrollList.add(new EmployeePayrollData(id, name, salary, startDate));
+				String gender = result.getString("gender");
+				employeePayrollList.add(new EmployeePayrollData(id, name, salary, startDate, gender));
 			}
 		} catch (SQLException e) {
 			throw new EmpPayrollException(EmpPayrollException.ExceptionType.CONNECTION_ERROR, e.getMessage());
 		}
 		return employeePayrollList;
+	}
+
+	public List<EmployeePayrollData> getEmployeePayrollDataForDateRange(LocalDate startDate, LocalDate endDate)
+			throws EmpPayrollException {
+		// TODO Auto-generated method stub
+		String sql = String.format("SELECT * FROM employee_payroll WHERE start BETWEEN '%s' AND '%s';",
+				Date.valueOf(startDate), Date.valueOf(endDate));
+		List<EmployeePayrollData> employeePayrollList = new ArrayList<EmployeePayrollData>();
+		try (Connection connection = getConnection()) {
+			employeePayrollDataStatement = connection.prepareStatement(sql);
+			ResultSet resultSet = employeePayrollDataStatement.executeQuery();
+			while (resultSet.next()) {
+				employeePayrollList.add(new EmployeePayrollData(resultSet.getInt("id"), resultSet.getString("name"),
+						resultSet.getDouble("basic_pay"), resultSet.getDate("start").toLocalDate()));
+			}
+		} catch (SQLException e) {
+			throw new EmpPayrollException(EmpPayrollException.ExceptionType.INCORRECT_INFO, e.getMessage());
+		}
+		return employeePayrollList;
+	}
+
+	public double getSumByGender(String c) throws EmpPayrollException {
+		List<EmployeePayrollData> employeePayrollList = this.readData();
+		double sum = 0.0;
+		List<EmployeePayrollData> sortByGenderList = employeePayrollList.stream()
+				.filter(employee -> employee.getGender().equals(c)).collect(Collectors.toList());
+		sum = sortByGenderList.stream().map(employee -> employee.getSalary()).reduce(0.0, Double::sum);
+		return sum;
+	}
+
+	public double getEmpDataGroupedByGender(String column, String operation, String gender) throws EmpPayrollException {
+
+		Map<String, Double> sumByGenderMap = new HashMap<>();
+		String sql = String.format("SELECT gender, %s(%s) FROM employee_payroll GROUP BY gender;", operation, column);
+		try (Connection connection = getConnection()) {
+			PreparedStatement preparedStatement = connection.prepareStatement(sql);
+			ResultSet resultSet = preparedStatement.executeQuery();
+			while (resultSet.next()) {
+				sumByGenderMap.put(resultSet.getString(1), resultSet.getDouble(2));
+			}
+		} catch (SQLException e) {
+			throw new EmpPayrollException(EmpPayrollException.ExceptionType.INCORRECT_INFO, e.getMessage());
+		}
+		if (gender.equals("M")) {
+			return sumByGenderMap.get("M");
+		}
+		return sumByGenderMap.get("F");
 	}
 }
