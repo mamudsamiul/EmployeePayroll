@@ -23,4 +23,12 @@ public class PayrollTest {
 		empPayrollService.printData(EmpPayrollService.IOService.FILE_IO);
 		Assert.assertEquals(3, empPayrollService.countEntries(EmpPayrollService.IOService.FILE_IO));
 	}
+
+	@Test
+	public void givenEmpDataInFileShouldRead() {
+		EmpPayrollService empPayrollService = new EmpPayrollService();
+		empPayrollService.readEmployeePayrollData(EmpPayrollService.IOService.FILE_IO);
+		long entries = empPayrollService.countEntries(EmpPayrollService.IOService.FILE_IO);
+		Assert.assertEquals(3, entries);
+	}
 }
