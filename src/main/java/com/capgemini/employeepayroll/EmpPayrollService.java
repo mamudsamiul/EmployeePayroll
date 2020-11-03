@@ -34,6 +34,12 @@ public class EmpPayrollService {
 		}
 	}
 
+	public List<EmployeePayrollData> readEmpPayrollData(IOService ioService) throws EmpPayrollException {
+		if (ioService.equals(IOService.DB_IO))
+			employeePayrollList = new EmployeePayrollDBService().readData();
+		return employeePayrollList;
+	}
+
 	public void writeEmpPayrollData(IOService ioService) {
 		if (ioService.equals(IOService.CONSOLE_IO))
 			System.out.println("\nWriting Payroll to Console\n" + employeePayrollList);
@@ -52,4 +58,5 @@ public class EmpPayrollService {
 			return new EmployeePayrollFileIOService().countEntries();
 		return 0;
 	}
+
 }
