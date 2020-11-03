@@ -1,0 +1,3 @@
+id= 1, name= Samiul Mamud, salary= 10000.0
+id= 2, name= Rahul Ghosh, salary= 11000.0
+id= 3, name= Dwipayan Das, salary= 12000.0
