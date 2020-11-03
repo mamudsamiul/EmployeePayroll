@@ -19,7 +19,7 @@ public class EmployeePayrollData {
 		this.setStartDate(startDate);
 	}
 
-	public double getSalary() {
+	public Double getSalary() {
 		return salary;
 	}
 
