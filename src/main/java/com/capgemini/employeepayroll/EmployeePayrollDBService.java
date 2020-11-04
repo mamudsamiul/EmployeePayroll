@@ -53,10 +53,12 @@ public class EmployeePayrollDBService {
 	}
 
 	public int updateEmployeeData(String name, double salary) throws EmpPayrollException {
+		// TODO Auto-generated method stub
 		return this.updateEmployeeDataUsingStatement(name, salary);
 	}
 
 	private int updateEmployeeDataUsingStatement(String name, double salary) throws EmpPayrollException {
+		// TODO Auto-generated method stub
 		String sql = String.format("update employee_payroll set basic_pay = %.2f where name ='%s';", salary, name);
 		try (Connection connection = this.getConnection()) {
 			Statement statement = connection.createStatement();
@@ -81,6 +83,8 @@ public class EmployeePayrollDBService {
 	}
 
 	public EmployeePayrollData getEmployeePayrollData(String name) throws EmpPayrollException {
+		// TODO Auto-generated method stub
+
 		List<EmployeePayrollData> employeePayrollList = this.readData();
 		EmployeePayrollData employeeData = employeePayrollList.stream()
 				.filter(employee -> employee.getName().contentEquals(name)).findFirst().orElse(null);
@@ -89,6 +93,7 @@ public class EmployeePayrollDBService {
 	}
 
 	private void prepareStatementForEmployeeData() throws EmpPayrollException {
+		// TODO Auto-generated method stub
 		try {
 			Connection connection = this.getConnection();
 			String sql = "SELECT * FROM employee_payroll WHERE name = ?";
@@ -117,6 +122,7 @@ public class EmployeePayrollDBService {
 
 	public List<EmployeePayrollData> getEmployeePayrollDataForDateRange(LocalDate startDate, LocalDate endDate)
 			throws EmpPayrollException {
+		// TODO Auto-generated method stub
 		String sql = String.format("SELECT * FROM employee_payroll WHERE start BETWEEN '%s' AND '%s';",
 				Date.valueOf(startDate), Date.valueOf(endDate));
 		List<EmployeePayrollData> employeePayrollList = new ArrayList<EmployeePayrollData>();
@@ -162,6 +168,7 @@ public class EmployeePayrollDBService {
 	}
 
 	public Map<String, Double> getAvgSalaryByGender() throws EmpPayrollException {
+		// TODO Auto-generated method stub
 		String sql = "SELECT gender, AVG(basic_pay) as avg_salary FROM employee_payroll GROUP BY gender;";
 		Map<String, Double> genderToAvgSalaryMap = new HashMap<>();
 		try (Connection connection = this.getConnection()) {
@@ -179,12 +186,13 @@ public class EmployeePayrollDBService {
 		return genderToAvgSalaryMap;
 	}
 
-	public EmployeePayrollData addEmpToPayroll(String name, double salary, LocalDate start, String gender)
+	public EmployeePayrollData addEmpToPayrollTable(String name, double salary, LocalDate start, String gender)
 			throws EmpPayrollException {
+		// TODO Auto-generated method stub
 		int id = -1;
 		EmployeePayrollData employeePayrollData = null;
 		String sql = String.format(
-				"INSERT INTO employee_payroll(name, basic_pay, start, gender, deductions,taxable_pay,tax,net_pay) VALUES('%s', '%s', '%s', '%s',0,0,0,0);", name,
+				"INSERT INTO employee_payroll(name, basic_pay, start, gender) VALUES('%s', '%s', '%s', '%s');", name,
 				salary, Date.valueOf(start), gender);
 		try (Connection connection = this.getConnection()) {
 			Statement statement = connection.createStatement();
@@ -197,6 +205,73 @@ public class EmployeePayrollDBService {
 			employeePayrollData = new EmployeePayrollData(id, name, salary, start, gender);
 		} catch (SQLException e) {
 			throw new EmpPayrollException(EmpPayrollException.ExceptionType.INCORRECT_INFO, e.getMessage());
+		}
+		return employeePayrollData;
+	}
+
+	public EmployeePayrollData addEmpToPayroll(String name, double salary, LocalDate start, String gender)
+			throws EmpPayrollException {
+		// TODO Auto-generated method stub
+		int id = -1;
+		EmployeePayrollData employeePayrollData = null;
+		Connection connection = null;
+		try {
+			connection = this.getConnection();
+			connection.setAutoCommit(false);
+		} catch (SQLException e) {
+			throw new EmpPayrollException(EmpPayrollException.ExceptionType.CONNECTION_ERROR, e.getMessage());
+		}
+		try (Statement statement = connection.createStatement()) {
+			String sql = String.format(
+					"INSERT INTO employee_payroll(name, basic_pay, start, gender,deductions, taxable_pay, tax, net_pay) VALUES('%s', '%s', '%s', '%s',0,0,0,0);",
+					name, salary, Date.valueOf(start), gender);
+			int rowAffected = statement.executeUpdate(sql, statement.RETURN_GENERATED_KEYS);
+			if (rowAffected == 1) {
+				ResultSet resultSet = statement.getGeneratedKeys();
+				if (resultSet.next())
+					id = resultSet.getInt(1);
+			}
+		} catch (SQLException e) {
+			try {
+				connection.rollback();
+			} catch (SQLException e1) {
+				// TODO Auto-generated catch block
+				throw new EmpPayrollException(EmpPayrollException.ExceptionType.CONNECTION_ERROR, e.getMessage());
+			}
+			throw new EmpPayrollException(EmpPayrollException.ExceptionType.INCORRECT_INFO, e.getMessage());
+		}
+		try (Statement statement = connection.createStatement()) {
+			double deductions = salary * 0.2;
+			double taxablePay = salary - deductions;
+			double tax = taxablePay * 0.1;
+			double netPay = salary - tax;
+			String sql = String.format("INSERT INTO payroll "
+					+ "(id, basic_pay, deductions, taxable_pay, tax, net_pay) VALUES ('%s', '%s', '%s', '%s', '%s', '%s')",
+					id, salary, deductions, taxablePay, tax, netPay);
+			int rowAffected = statement.executeUpdate(sql);
+			if (rowAffected == 1)
+				employeePayrollData = new EmployeePayrollData(id, name, salary, start, gender);
+		} catch (SQLException e) {
+			try {
+				connection.rollback();
+				return employeePayrollData;
+			} catch (SQLException e1) {
+				// TODO Auto-generated catch block
+				throw new EmpPayrollException(EmpPayrollException.ExceptionType.CONNECTION_ERROR, e.getMessage());
+			}
+		}
+		try {
+			connection.commit();
+		} catch (SQLException e) {
+			throw new EmpPayrollException(EmpPayrollException.ExceptionType.CONNECTION_ERROR, e.getMessage());
+		} finally {
+			if (connection != null)
+				try {
+					connection.close();
+				} catch (SQLException e) {
+					// TODO Auto-generated catch block
+					throw new EmpPayrollException(EmpPayrollException.ExceptionType.CONNECTION_ERROR, e.getMessage());
+				}
 		}
 		return employeePayrollData;
 	}
